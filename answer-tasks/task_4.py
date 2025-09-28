@@ -1,59 +1,39 @@
-"""
-Task 4 — Quantum Feature Maps
-Your goal:
-1) Use ZZFeatureMap OR PauliFeatureMap with 2 features (x1, x2).
-2) Bind numeric values and inspect the resulting quantum state.
-3) Show how classical inputs embed into a quantum state.
-
-Add your 1–2 sentence observation note here:
-- e.g., "Binding x1,x2 creates a specific quantum state (amplitudes); feature map depth changes entanglement."
-"""
-
-# ---- Imports ----
-from qiskit.circuit.library import ZZFeatureMap, PauliFeatureMap   # Common feature maps
-from qiskit.circuit import ParameterVector                        # For symbolic params
-from qiskit.quantum_info import Statevector                       # To inspect state
-from qiskit import QuantumCircuit                                 # For drawing
+# answer-tasks/task_4.py  — Qiskit 2.x compatible
+from qiskit.circuit.library import zz_feature_map   # function (new API)
+from qiskit.quantum_info import Statevector
 from pathlib import Path
 import numpy as np
 
-# ---- Output directory ----
-OUT_DIR = Path("outputs/task4")
-OUT_DIR.mkdir(parents=True, exist_ok=True)
+OUT = Path("outputs/task4")
+OUT.mkdir(parents=True, exist_ok=True)
 
-def save_text(text: str, name: str):
-    path = OUT_DIR / name
-    path.write_text(text, encoding="utf-8")
-    print(f"[saved] {path}")
+# Choose settings + inputs
+reps = 2
+x1, x2 = 0.3, 1.2
 
-# ---- 1) Choose a feature map ----
-# Option A: ZZFeatureMap with 2 qubits (for x1, x2). Easier for beginners.
-feature_map = ZZFeatureMap(feature_dimension=2, reps=2)  # reps controls depth
+# Build the feature map circuit (2 qubits => feature_dimension=2)
+fm = zz_feature_map(num_qubits=2, reps=reps, name="ZZFeatureMap")
 
-# (Alternative) PauliFeatureMap:
-# feature_map = PauliFeatureMap(feature_dimension=2, reps=1, paulis=['Z','ZZ'])
+# Grab the *actual* Parameter objects from the circuit (sorted for stability)
+params = sorted(fm.parameters, key=lambda p: p.name)   # e.g., [Parameter('x[0]'), Parameter('x[1]')]
 
-# ---- 2) Create symbolic parameters and bind numeric values ----
-x = ParameterVector("x", length=2)       # x[0] -> x1, x[1] -> x2
-bound_circ = feature_map.assign_parameters({x[0]: 0.3, x[1]: 1.2}, inplace=False)
+# Bind your numbers to those parameters (never create your own ParameterVector here)
+bound = fm.assign_parameters({params[0]: x1, params[1]: x2}, inplace=False)
 
-# ---- 3) Inspect the embedded state ----
-# Convert the (bound) feature-map circuit into a statevector (no measurement).
-sv = Statevector.from_instruction(bound_circ)
+# Get the statevector and save human-readable outputs
+sv = Statevector.from_instruction(bound)
+amps = np.asarray(sv.data)
 
-# Save a text report of amplitudes (magnitude and phase) for learning purposes.
-amps = np.array(sv.data)  # complex amplitudes
-report_lines = []
-report_lines.append("Feature Map: ZZFeatureMap(feature_dimension=2, reps=2)")
-report_lines.append("Binding: x1=0.3, x2=1.2")
-report_lines.append("\nStatevector (amplitudes):")
-for i, a in enumerate(amps):
-    report_lines.append(f"  |{i:02b}>: {a.real:+.6f} {a.imag:+.6f}j  |a|^2={abs(a)**2:.6f}")
-report_lines.append("\nSum of probabilities (should be 1.0): {:.6f}".format(float(np.sum(np.abs(amps)**2))))
-save_text("\n".join(report_lines), "feature_map_state.txt")
+(OUT / "feature_map_state.txt").write_text(
+    "\n".join([
+        f"reps={reps}, x1={x1}, x2={x2}",
+        "Statevector amplitudes (|00>, |01>, |10>, |11>):",
+        *[f"  |{i:02b}>: {a.real:+.6f} {a.imag:+.6f}j   |a|^2={abs(a)**2:.6f}" for i, a in enumerate(amps)],
+        f"Sum of probabilities: {float(np.sum(np.abs(amps)**2)):.6f}"
+    ]),
+    encoding="utf-8"
+)
 
-# Also save an ASCII circuit diagram for reference.
-circuit_diagram = bound_circ.draw(output="text")
-save_text(str(circuit_diagram), "feature_map_circuit.txt")
+(OUT / "feature_map_circuit.txt").write_text(str(bound.draw(output="text")), encoding="utf-8")
 
-print("[done] Task 4 complete. See outputs/task4 for state & circuit text files.")
+print("[answers] task4 done → outputs/task4/")
