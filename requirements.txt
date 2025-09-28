@@ -1,0 +1,10 @@
+# Core Quantum
+qiskit>=1.1
+qiskit-aer>=0.14
+
+# Viz & Math
+matplotlib>=3.7
+numpy>=1.24
+
+# ML for Task 5
+scikit-learn>=1.3
